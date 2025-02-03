@@ -17,10 +17,33 @@ dbconn().then(()=>{
     }
 })
 
-app.post("/api/v1/products",(req,res)=>{
+app.post("/api/v1/products",async(req,res)=>{
+    try{
+        console.log("Inside api/v1/products");
 const newProduct=req.body;
- product.create(newProduct);
-
+console.log("Data recieved:"+newProduct);
+ const doc=await product.create(newProduct);
+ console.log("product created");
+res.json({
+    status:"Data inserted successfully",
+    data:doc
+})
+    }catch(err){
+        console.log("Error in /api/v1/products is: "+Object.keys(err));
+        console.log("Hii:"+err._message);
+        if(err.name=="ValidationError"){
+res.status(400).json({
+    status:'fail',
+    message:'Data validation failed'
+})
+        }else{
+            res.status(500).json({
+                status:'fail',
+                message:'internal server error'
+            })
+        }
+        
+    }
 })
 
 
