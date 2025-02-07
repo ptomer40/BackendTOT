@@ -107,37 +107,122 @@ app.get('/api/v1/products',async(req,res)=>{
 })
 //user api to store data
 
-app.post("/api/v1/users",async(req,res)=>{
-    try{
-        console.log("Inside api/v1/users");
-const newUser=req.body;
-const salt=await bcrypt.genSalt(14);//2^14
-const hashedPassword=await bcrypt.hash(newUser.password,salt);
-newUser.password=hashedPassword;
-console.log("Data recieved:"+newUser);
- const doc=await user.create(newUser);
- console.log("User created");
-res.json({
-    status:"User inserted successfully",
-    data:doc
-})
-    }catch(err){
-        console.log("Error in /api/v1/products is: "+Object.keys(err));
-        console.log("Hii:"+err._message);
-        if(err.name=="ValidationError"){
-res.status(400).json({
-    status:'fail',
-    message:'Data validation failed'+err.message,
-})
-        }else{
-            res.status(500).json({
-                status:'fail',
-                message:'internal server error'
+// app.post("/api/v1/users",async(req,res)=>{
+//     try{
+//         const{otp,email,password}=req.body;
+//         const otpDoc=OTP.findOne({
+//             createdAt:{
+//                 $gte:Date.now-3*60*1000,
+//             },
+//             email:email,
+//         });
+// //         console.log("Inside api/v1/users");
+// // const newUser=req.body;
+// // const salt=await bcrypt.genSalt(14);//2^14
+// // const hashedPassword=await bcrypt.hash(newUser.password,salt);
+// // newUser.password=hashedPassword;
+// // console.log("Data recieved:"+newUser);
+// //  const doc=await user.create(newUser);
+// //  console.log("User created");
+// // res.json({
+// //     status:"User inserted successfully",
+// //     data:doc
+// // })
+//     }catch(err){
+//         console.log("Error in /api/v1/products is: "+Object.keys(err));
+//         console.log("Hii:"+err._message);
+//         if(err.name=="ValidationError"){
+// res.status(400).json({
+//     status:'fail',
+//     message:'Data validation failed'+err.message,
+// })
+//         }else{
+//             res.status(500).json({
+//                 status:'fail',
+//                 message:'internal server error'
+//             })
+//         }
+        
+//     }
+// })
+
+//new API
+
+app.post("/api/v1/users", async (req, res) => {
+    try {
+        const { otp, email, password, id,Name } = req.body;
+        if(!otp || !email || !password){
+            res.status(400).json({
+              status:'fail',
+              message:"otp or email or password is required"  
             })
         }
-        
+
+        // otp that is sent within last X=10 minutes
+        // const otpDoc = await OTP.findOne({
+        //     createdAt: {
+        //         $gte: Date.now() - 10 * 60 * 1000,
+        //     },
+        //     email: email,
+        // });
+        const otpDoc = await OTP.findOne()
+            .where("createdAt")
+            .gte(Date.now() - 10 * 60 * 1000)
+            .where("email")
+            .equals(email);
+
+        if (otpDoc === null) {
+            res.status(400);
+            res.json({
+                statusbar: "fail",
+                message: "Either otp has expired or was not sent!",
+            });
+            return;
+        }
+
+        const hashedOtp = otpDoc.otp;
+
+        const isOtpValid = await bcrypt.compare(otp.toString(), hashedOtp);
+
+        if (isOtpValid) {
+            const salt = await bcrypt.genSalt(14); // 2^14
+            const hashedPassword = await bcrypt.hash(password, salt);
+            const newUser = await user.create({
+                email,
+                password: hashedPassword,
+                id,
+                Name
+            });
+
+            res.status(201);
+            res.json({
+                status: "success",
+                message: "User created",
+            });
+        } else {
+            res.status(401);
+            res.json({
+                status: "fail",
+                message: "Incorrect OTP!",
+            });
+        }
+    } catch (err) {
+        console.log(err.name);
+        console.log(err.code);
+        console.log(err.message);
+        if (err.code == 11000 || err.name == "ValidationError") {
+            res.status(400).json({
+                status: "fail",
+                message: "Data validation failed: " + err.message,
+            });
+        } else {
+            res.status(500).json({
+                status: "fail",
+                message: "Internal Server Error",
+            });
+        }
     }
-})
+});
 //get user data
 app.get('/api/v1/users',async(req,res)=>{
     try{
