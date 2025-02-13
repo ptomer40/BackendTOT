@@ -1,5 +1,5 @@
 const express = require('express');
-const { myReadFile, writeMyFile,createNewId } = require('./utils');
+const { myReadFile, writeMyFile, createNewId } = require('./utils');
 
 const fs = require('fs').promises;
 const app = express();
@@ -22,8 +22,8 @@ app.get("/", (req, res) => {
 // })
 
 
-app.get("/getProducts",async(req,res)=>{
-    try{
+app.get("/getProducts", async (req, res) => {
+    try {
         const arr = await myReadFile();
         //res.send(arr);
         res.send(JSON.stringify(arr));
@@ -31,92 +31,103 @@ app.get("/getProducts",async(req,res)=>{
         //     status:"success",
         //     data:arr,
         // })
-    }catch(err){
-        console.log("Error during read getproducts"+err);
-        res.json({status:"fail"})
+        res.status(200);
+    } catch (err) {
+        res.status(500);
+        console.log("Error during read getproducts" + err);
+        res.json({ status: "fail" })
     }
 })
 
 
 app.post("/products", async (req, res) => {
     try {
-        const newProduct=req.body;
+        const newProduct = req.body;
         const arr = await myReadFile();
         console.log(arr);
-        const tid=createNewId(arr);
-        console.log("tid="+tid);
-        newProduct.id=tid; //add tid into newProduct retrieve from frontend
+        const tid = createNewId(arr);
+        console.log("tid=" + tid);
+        newProduct.id = tid; //add tid into newProduct retrieve from frontend
         arr.push(req.body); // req.body read client data
         console.log(req.body);
         //arr.push(newProduct);
         await writeMyFile(arr); // write data
+        res.status(201);
         res.json({ status: "success" });
     } catch (err) {
+        res.status(500)
         console.log("Error in products:" + err.message);
         res.json({ status: "fail" });
     }
 })
 
-app.patch("/products/:productId",async(req,res)=>{
- try{
-    const productId= req.params.productId;
-    const newProductInfo=req.body;
-    console.log(productId);
-    const arr=await myReadFile();
-       const foundIndex=arr.findIndex((obj)=>{
-        if(obj.id==productId){
-            return true;
+app.patch("/products/:productId", async (req, res) => {
+    try {
+        const productId = req.params.productId;
+        const newProductInfo = req.body;
+        console.log(productId);
+        const arr = await myReadFile();
+        const foundIndex = arr.findIndex((obj) => {
+            if (obj.id == productId) {
+                return true;
+            }
+            else return false;
+        });
+        if (foundIndex != -1) {
+            const oldproduct = arr[foundIndex];
+            const newProduct = { ...oldproduct, ...newProductInfo };
+            arr[foundIndex] = newProduct;
+            writeMyFile(arr);
+            res.status(200);
+            res.json({
+                status: "Hi, successs"
+            })
+        } else {
+            res.status(400);
+            res.json({
+                status: 'fail',
+                message: 'Invalid index',
+            })
         }
-        else return false;
-       });
-if(foundIndex!=-1){
-const oldproduct=arr[foundIndex];
-const newProduct={...oldproduct,...newProductInfo};
-arr[foundIndex]=newProduct;
-writeMyFile(arr);
-  res.json({
-    status:"Hi, successs"
-  })
-}else{
-    res.json({
-        status:'fail',
-        message:'Invalid index',
-    })
-}
 
-    }catch(err){
-        console.log("Error in patch"+err.message);
+    } catch (err) {
+        res.status(500);
+        console.log("Error in patch" + err.message);
     }
 })
 
-app.delete("/products/:productId",async(req,res)=>{
-    try{
-        const productId= req.params.productId;
-        const arr=await myReadFile();
+app.delete("/products/:productId", async (req, res) => {
+    try {
+        const productId = req.params.productId;
+        const arr = await myReadFile();
         console.log(arr);
-        const foundIndex=arr.findIndex((obj)=>{
-            return obj.id==productId;
+        const foundIndex = arr.findIndex((obj) => {
+            return obj.id == productId;
         })
-if(foundIndex!=-1){
-arr.splice(foundIndex,1);// remove one element
-await writeMyFile(arr);
-res.json({
-    status:"Deleted Successfully!!!"
-})
-}else{
-    res.json({
-        status:'Invalid Id , could not delete'
-      })
-}
-    
+        if (foundIndex != -1) {
+            arr.splice(foundIndex, 1);// remove one element
+            await writeMyFile(arr);
+            res.status(204);
+            res.json({
+                status: "Deleted Successfully!!!",
+                code: 200
+            })
+        } else {
+            res.status(400);
+            res.json({
+                status: 'Invalid Id , could not delete'
+            })
+        }
 
-    }catch(err){
-console.log("Error in delete api"+err.message);
-  res.json({
-    status:'fail delete'
-  })
+
+    } catch (err) {
+        console.log("Error in delete api" + err.message);
+        res.status(500);
+        res.json({
+            status: 'fail delete'
+        })
     }
-    
+
 
 })
 
